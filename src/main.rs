@@ -4,14 +4,17 @@
 //! and held leases — plus link health — into a single human-readable picture
 //! of the entire wintermute entity.
 
+#![allow(clippy::print_stdout, clippy::print_stderr)]
+
 use std::process;
 
 use clap::Parser;
 
-mod facets;
-mod model;
-mod render;
-mod runner;
+pub(crate) mod facets;
+pub(crate) mod model;
+pub(crate) mod render;
+#[allow(dead_code)]
+pub(crate) mod runner;
 
 use model::WholeSelf;
 

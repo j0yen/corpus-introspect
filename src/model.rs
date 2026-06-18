@@ -1,13 +1,13 @@
-//! Data model for the WholeSelf record emitted by corpus-introspect.
+//! Data model for the `WholeSelf` record emitted by corpus-introspect.
 
 use serde::{Deserialize, Serialize};
 
-use crate::facets::{collect_attest, collect_arbiter, collect_converge, collect_roster, collect_tether};
+use crate::facets::{collect_arbiter, collect_attest, collect_converge, collect_roster, collect_tether};
 
 /// Status of a single corpus facet query.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum FacetStatus {
+pub enum FacetStatus {
     /// Data collected successfully.
     Ok,
     /// Facet CLI is not installed.
@@ -20,60 +20,60 @@ pub(crate) enum FacetStatus {
 
 /// Per-node information assembled from all facets.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct NodeInfo {
+pub struct NodeInfo {
     /// Node identifier (hostname or NATS subject prefix).
-    pub(crate) node: String,
+    pub node: String,
     /// Whether this node has a valid corpus attestation.
-    pub(crate) attested: bool,
-    /// Link health from wm-tether (None if tether unavailable).
-    pub(crate) link: Option<LinkInfo>,
-    /// Active session count from muster (None if roster unavailable).
-    pub(crate) sessions: Option<u32>,
+    pub attested: bool,
+    /// Link health from `wm-tether` (None if tether unavailable).
+    pub link: Option<LinkInfo>,
+    /// Active session count from `muster` (None if roster unavailable).
+    pub sessions: Option<u32>,
     /// Version lag in commits behind the converged state (None if converge unavailable).
-    pub(crate) version_lag: Option<u32>,
+    pub version_lag: Option<u32>,
 }
 
-/// Link health information from wm-tether.
+/// Link health information from `wm-tether`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct LinkInfo {
+pub struct LinkInfo {
     /// Is the link currently up?
-    pub(crate) up: bool,
+    pub up: bool,
     /// Round-trip time in milliseconds, if measured.
-    pub(crate) rtt_ms: Option<f64>,
+    pub rtt_ms: Option<f64>,
 }
 
-/// A held lease from corpus-arbiter.
+/// A held lease from `corpus-arbiter`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct LeaseInfo {
+pub struct LeaseInfo {
     /// Lease key / name.
-    pub(crate) key: String,
+    pub key: String,
     /// Which node holds this lease.
-    pub(crate) holder: String,
+    pub holder: String,
     /// When the lease expires (ISO 8601), if known.
-    pub(crate) expires: Option<String>,
+    pub expires: Option<String>,
 }
 
 /// The complete self-portrait: all nodes, leases, and whether memory is converged.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct WholeSelf {
+pub struct WholeSelf {
     /// All known nodes that constitute the entity.
-    pub(crate) nodes: Vec<NodeInfo>,
+    pub nodes: Vec<NodeInfo>,
     /// Currently held leases across the fleet.
-    pub(crate) leases: Vec<LeaseInfo>,
+    pub leases: Vec<LeaseInfo>,
     /// Is the entire fleet converged on the same memory state?
-    pub(crate) converged: bool,
+    pub converged: bool,
     /// Timestamp when this record was generated (ISO 8601).
-    pub(crate) generated_ts: String,
+    pub generated_ts: String,
     /// Facet collection status — degraded facets are named here.
-    pub(crate) facet_status: std::collections::HashMap<String, FacetStatus>,
+    pub facet_status: std::collections::HashMap<String, FacetStatus>,
 }
 
 impl WholeSelf {
-    /// Collect all corpus facets and synthesise a WholeSelf record.
+    /// Collect all corpus facets and synthesise a `WholeSelf` record.
     ///
     /// Never panics — missing CLIs degrade gracefully to `FacetStatus::Degraded`.
     #[must_use]
-    pub(crate) fn collect() -> Self {
+    pub fn collect() -> Self {
         let mut facet_status = std::collections::HashMap::new();
 
         let attest = collect_attest(&mut facet_status);
@@ -169,10 +169,7 @@ impl WholeSelf {
 
 fn hostname_or_unknown() -> String {
     std::env::var("HOSTNAME")
-        .or_else(|_| {
-            std::fs::read_to_string("/etc/hostname")
-                .map(|s| s.trim().to_owned())
-        })
+        .or_else(|_| std::fs::read_to_string("/etc/hostname").map(|s| s.trim().to_owned()))
         .unwrap_or_else(|_| "localhost".to_owned())
 }
 
@@ -183,6 +180,5 @@ fn utc_now() -> String {
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().to_owned())
-        .unwrap_or_else(|| "unknown".to_owned())
+        .map_or_else(|| "unknown".to_owned(), |s| s.trim().to_owned())
 }

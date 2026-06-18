@@ -11,35 +11,35 @@ use crate::model::{FacetStatus, LeaseInfo, LinkInfo};
 // ---------------------------------------------------------------------------
 
 /// Data returned by the attest facet.
-pub(crate) struct AttestData {
-    /// (node_name, is_attested) pairs.
-    pub(crate) nodes: Vec<(String, bool)>,
+pub struct AttestData {
+    /// `(node_name, is_attested)` pairs.
+    pub nodes: Vec<(String, bool)>,
 }
 
 /// Data returned by the roster facet.
-pub(crate) struct RosterData {
-    /// (node_name, active_session_count) pairs.
-    pub(crate) sessions: Vec<(String, u32)>,
+pub struct RosterData {
+    /// `(node_name, active_session_count)` pairs.
+    pub sessions: Vec<(String, u32)>,
 }
 
 /// Data returned by the converge facet.
-pub(crate) struct ConvergeData {
+pub struct ConvergeData {
     /// Is the fleet fully converged?
-    pub(crate) converged: bool,
-    /// (node_name, version_lag_commits) pairs. 0 = up to date.
-    pub(crate) version_lags: Vec<(String, u32)>,
+    pub converged: bool,
+    /// `(node_name, version_lag_commits)` pairs. 0 = up to date.
+    pub version_lags: Vec<(String, u32)>,
 }
 
 /// Data returned by the arbiter facet.
-pub(crate) struct ArbiterData {
+pub struct ArbiterData {
     /// Currently held leases.
-    pub(crate) leases: Vec<LeaseInfo>,
+    pub leases: Vec<LeaseInfo>,
 }
 
 /// Data returned by the tether facet.
-pub(crate) struct TetherData {
-    /// (node_name, link_info) pairs.
-    pub(crate) links: Vec<(String, LinkInfo)>,
+pub struct TetherData {
+    /// `(node_name, link_info)` pairs.
+    pub links: Vec<(String, LinkInfo)>,
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +103,7 @@ impl CliError {
 /// ```json
 /// { "this_node": "laptop", "attested_nodes": ["laptop", "server"] }
 /// ```
-pub(crate) fn collect_attest(status: &mut HashMap<String, FacetStatus>) -> AttestData {
+pub fn collect_attest(status: &mut HashMap<String, FacetStatus>) -> AttestData {
     match run_cli(&["corpus-attest", "--json"]) {
         Ok(stdout) => {
             match parse_attest_json(&stdout) {
@@ -165,7 +165,7 @@ fn parse_attest_json(s: &str) -> Result<AttestData, String> {
 /// ```json
 /// { "nodes": [{ "node": "laptop", "sessions": 3 }] }
 /// ```
-pub(crate) fn collect_roster(status: &mut HashMap<String, FacetStatus>) -> RosterData {
+pub fn collect_roster(status: &mut HashMap<String, FacetStatus>) -> RosterData {
     match run_cli(&["muster", "--fleet", "--json"]) {
         Ok(stdout) => {
             match parse_roster_json(&stdout) {
@@ -219,7 +219,7 @@ fn parse_roster_json(s: &str) -> Result<RosterData, String> {
 /// ```json
 /// { "converged": true, "nodes": [{ "node": "laptop", "lag": 0 }] }
 /// ```
-pub(crate) fn collect_converge(status: &mut HashMap<String, FacetStatus>) -> ConvergeData {
+pub fn collect_converge(status: &mut HashMap<String, FacetStatus>) -> ConvergeData {
     match run_cli(&["corpus-converge", "version", "--json"]) {
         Ok(stdout) => {
             match parse_converge_json(&stdout) {
@@ -283,7 +283,7 @@ fn parse_converge_json(s: &str) -> Result<ConvergeData, String> {
 /// ```json
 /// { "leases": [{ "key": "lock/build", "holder": "laptop", "expires": "..." }] }
 /// ```
-pub(crate) fn collect_arbiter(status: &mut HashMap<String, FacetStatus>) -> ArbiterData {
+pub fn collect_arbiter(status: &mut HashMap<String, FacetStatus>) -> ArbiterData {
     match run_cli(&["corpus-arbiter", "status", "--json"]) {
         Ok(stdout) => {
             match parse_arbiter_json(&stdout) {
@@ -343,7 +343,7 @@ fn parse_arbiter_json(s: &str) -> Result<ArbiterData, String> {
 /// ```json
 /// { "links": [{ "node": "server", "up": true, "rtt_ms": 12.4 }] }
 /// ```
-pub(crate) fn collect_tether(status: &mut HashMap<String, FacetStatus>) -> TetherData {
+pub fn collect_tether(status: &mut HashMap<String, FacetStatus>) -> TetherData {
     match run_cli(&["wm-tether", "status", "--json"]) {
         Ok(stdout) => {
             match parse_tether_json(&stdout) {

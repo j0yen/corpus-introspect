@@ -1,10 +1,10 @@
-//! Rendering the WholeSelf into human-readable output formats.
+//! Rendering the `WholeSelf` into human-readable output formats.
 
 use crate::model::{FacetStatus, WholeSelf};
 
 /// Print the human-readable self-portrait to stdout.
 #[allow(clippy::print_stdout)]
-pub(crate) fn print_text(whole: &WholeSelf) {
+pub fn print_text(whole: &WholeSelf) {
     let node_count = whole.nodes.len();
     let converged_str = if whole.converged { "converged" } else { "NOT converged" };
 
@@ -16,19 +16,13 @@ pub(crate) fn print_text(whole: &WholeSelf) {
         let attest_str = if node.attested { "attested" } else { "unattested" };
         let link_str = match &node.link {
             Some(l) if l.up => {
-                if let Some(rtt) = l.rtt_ms {
-                    format!("up ({rtt:.1}ms)")
-                } else {
-                    "up".to_owned()
-                }
+                l.rtt_ms.map_or_else(|| "up".to_owned(), |rtt| format!("up ({rtt:.1}ms)"))
             }
             Some(_) => "down".to_owned(),
             None => "link-unknown".to_owned(),
         };
-        let sessions_str = match node.sessions {
-            Some(s) => format!("{s} sessions"),
-            None => "sessions-unknown".to_owned(),
-        };
+        let sessions_str =
+            node.sessions.map_or_else(|| "sessions-unknown".to_owned(), |s| format!("{s} sessions"));
         let lag_str = match node.version_lag {
             Some(0) => "current".to_owned(),
             Some(n) => format!("{n} commits behind"),
@@ -77,7 +71,7 @@ pub(crate) fn print_text(whole: &WholeSelf) {
 
 /// Print the selfreview block for the self-review playbook.
 #[allow(clippy::print_stdout)]
-pub(crate) fn print_selfreview(whole: &WholeSelf) {
+pub fn print_selfreview(whole: &WholeSelf) {
     let node_count = whole.nodes.len();
     let converged_str = if whole.converged { "yes" } else { "no" };
     let lease_count = whole.leases.len();
