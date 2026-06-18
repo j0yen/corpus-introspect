@@ -3,4 +3,5 @@
 //!
 //! See autobuilder skill: "Orphaned mock tests false-green" note.
 
+#[path = "mocks/ac6.rs"]
 mod ac6;
