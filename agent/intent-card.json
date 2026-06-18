@@ -1,0 +1,109 @@
+{
+  "schema": "autobuilder.intent_card.v1",
+  "prd_source": "/home/jsy/wintermute/autobuilder/PRD-corpus-introspect.md",
+  "root_motivation": "The federated self has four facets (attest, roster, converge, arbiter) but no single mirror that answers 'what am I, right now, as a whole' — corpus-introspect provides that unified self-portrait so the self-review loop and a human operator can understand the entire entity in one glance, from any node.",
+  "user_persona": "Joe Yen, running self-review on wintermute (single laptop now, multi-node fleet later); the command is also consumed by the self-review playbook via --format selfreview.",
+  "unfakeable_metric": {
+    "name": "acceptance_tests_passing_count",
+    "lower_is_better": false,
+    "harness_command": "scripts/run-metrics.sh",
+    "target": 5
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "level": "MUST",
+      "description": "Given fixture shims for attest/roster/converge/arbiter/tether on PATH returning known JSON, `corpus introspect --json` emits a WholeSelf record whose nodes, leases, and converged fields correctly reflect the fixtures (golden-compared).",
+      "test": "tests/acceptance_ac1.rs"
+    },
+    {
+      "id": "AC2",
+      "level": "MUST",
+      "description": "The text view renders, for the multi-node fixture, a self-portrait naming each node, its attested+link status, its session count, and the converged/lagging verdict on a bounded number of lines (snapshot-tested).",
+      "test": "tests/acceptance_ac2.rs"
+    },
+    {
+      "id": "AC3",
+      "level": "MUST",
+      "description": "Graceful degradation: when one upstream shim is absent (e.g. no wm-tether on PATH), that facet is reported as degraded/unknown with a reason and the command still exits success; the missing facet is never silently dropped.",
+      "test": "tests/acceptance_ac3.rs"
+    },
+    {
+      "id": "AC4",
+      "level": "MUST",
+      "description": "When NO corpus components are installed/configured, `corpus introspect` reports a single-node self (just this box, unattested, no fleet) honestly, rather than erroring — the lone-laptop case reads correctly.",
+      "test": "tests/acceptance_ac4.rs"
+    },
+    {
+      "id": "AC5",
+      "level": "MUST",
+      "description": "`--format selfreview` emits a parseable block containing the node count, converged verdict, and held-lease count, suitable for the self-review playbook (structural assert).",
+      "test": "tests/acceptance_ac5.rs"
+    },
+    {
+      "id": "AC6",
+      "level": "MAY",
+      "description": "(deferred — embedded NATS / live fleet) Run on a real two-node fleet, `corpus introspect` lists both nodes with live link RTT and real session counts.",
+      "test": "tests/mocks/ac6.rs"
+    },
+    {
+      "id": "AC7",
+      "level": "MUST",
+      "description": "`cargo test` green; `sigpipe::reset()` first in `main()` (grep-asserted); `corpus introspect | head` does not panic (no SIGPIPE).",
+      "test": "tests/acceptance_ac7.rs"
+    }
+  ],
+  "scope": [
+    "Synthesize output of corpus-attest, muster --fleet, corpus-converge, corpus-arbiter, wm-tether into a WholeSelf JSON record",
+    "Render a human-readable self-portrait (default text view)",
+    "Emit --format selfreview block for the self-review playbook",
+    "Degrade gracefully when any upstream CLI is missing or errors",
+    "Report an honest lone-laptop view when no fleet is present"
+  ],
+  "non_goals": [
+    "Does NOT implement any corpus facet itself (attest, roster, converge, arbiter are separate crates)",
+    "Does NOT manage NATS connections or fleet topology (reads existing CLI surfaces only)",
+    "Does NOT persist state — every run is a fresh query of the upstream CLIs",
+    "Does NOT provide a daemon or watch mode (one-shot query only in v1)",
+    "Does NOT authenticate or encrypt fleet communication (delegates to upstream tools)"
+  ],
+  "hard_constraints": {
+    "rust_edition": "2021",
+    "target_kind": "cli",
+    "deny_unsafe": true,
+    "max_deps": 6,
+    "msrv": "1.85",
+    "additional": {
+      "sigpipe_reset_required": "sigpipe::reset() must be first call in main()"
+    }
+  },
+  "five_whys_trace": [
+    {
+      "why": 1,
+      "q": "Why does wintermute need a corpus-introspect command?",
+      "a": "Because the four corpus facets (attest, roster, converge, arbiter) each answer a slice of 'what am I' but there is no single place to see the whole."
+    },
+    {
+      "why": 2,
+      "q": "Why does the self-review loop need the whole picture in one place?",
+      "a": "Because the self-review playbook runs on whatever node the operator is on, and assembling a multi-facet picture manually (four commands, possibly two machines) is fragile and error-prone."
+    },
+    {
+      "why": 3,
+      "q": "Why is fragility in self-review especially bad here?",
+      "a": "Because self-review is the mechanism by which the entity detects degraded state and queues remediation — if the review itself is incomplete, degraded nodes are invisible and the entity cannot heal."
+    }
+  ],
+  "ambiguities_resolved": [
+    {
+      "question": "Should the command be `corpus-introspect` (binary) or `corpus introspect` (subcommand)?",
+      "resolution": "Binary is `corpus-introspect`; clap exposes it as `corpus introspect` via an alias or the crate name is corpus-introspect. The PRD says 'corpus introspect [--json]' — implemented as a single binary named corpus-introspect."
+    },
+    {
+      "question": "What JSON do the upstream fixture shims return for AC1 golden test?",
+      "resolution": "Tests include inline fixture data; the binary invokes upstream CLIs by name, so tests put shim scripts on PATH using a temp dir prepended to PATH."
+    }
+  ],
+  "created_at": "2026-06-17T00:00:00Z",
+  "intent_slug": "corpus-introspect"
+}
