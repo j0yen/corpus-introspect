@@ -11,42 +11,42 @@ use crate::model::{FacetStatus, LeaseInfo, LinkInfo};
 // ---------------------------------------------------------------------------
 
 /// Data returned by the attest facet.
-pub struct AttestData {
+pub(crate) struct AttestData {
     /// (node_name, is_attested) pairs.
-    pub nodes: Vec<(String, bool)>,
+    pub(crate) nodes: Vec<(String, bool)>,
 }
 
 /// Data returned by the roster facet.
-pub struct RosterData {
+pub(crate) struct RosterData {
     /// (node_name, active_session_count) pairs.
-    pub sessions: Vec<(String, u32)>,
+    pub(crate) sessions: Vec<(String, u32)>,
 }
 
 /// Data returned by the converge facet.
-pub struct ConvergeData {
+pub(crate) struct ConvergeData {
     /// Is the fleet fully converged?
-    pub converged: bool,
+    pub(crate) converged: bool,
     /// (node_name, version_lag_commits) pairs. 0 = up to date.
-    pub version_lags: Vec<(String, u32)>,
+    pub(crate) version_lags: Vec<(String, u32)>,
 }
 
 /// Data returned by the arbiter facet.
-pub struct ArbiterData {
+pub(crate) struct ArbiterData {
     /// Currently held leases.
-    pub leases: Vec<LeaseInfo>,
+    pub(crate) leases: Vec<LeaseInfo>,
 }
 
 /// Data returned by the tether facet.
-pub struct TetherData {
+pub(crate) struct TetherData {
     /// (node_name, link_info) pairs.
-    pub links: Vec<(String, LinkInfo)>,
+    pub(crate) links: Vec<(String, LinkInfo)>,
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Run a subprocess and return its stdout as a String, or None if the binary
+/// Run a subprocess and return its stdout as a String, or error if the binary
 /// is not found / exits non-zero.
 fn run_cli(args: &[&str]) -> Result<String, CliError> {
     let (binary, rest) = args.split_first().ok_or(CliError::NotFound)?;
@@ -76,8 +76,11 @@ fn run_cli(args: &[&str]) -> Result<String, CliError> {
 #[derive(Debug)]
 enum CliError {
     NotFound,
+    #[allow(dead_code)]
     IoError(String),
+    #[allow(dead_code)]
     ExitError(i32, String),
+    #[allow(dead_code)]
     ParseError(String),
 }
 
@@ -100,7 +103,7 @@ impl CliError {
 /// ```json
 /// { "this_node": "laptop", "attested_nodes": ["laptop", "server"] }
 /// ```
-pub fn collect_attest(status: &mut HashMap<String, FacetStatus>) -> AttestData {
+pub(crate) fn collect_attest(status: &mut HashMap<String, FacetStatus>) -> AttestData {
     match run_cli(&["corpus-attest", "--json"]) {
         Ok(stdout) => {
             match parse_attest_json(&stdout) {
@@ -162,7 +165,7 @@ fn parse_attest_json(s: &str) -> Result<AttestData, String> {
 /// ```json
 /// { "nodes": [{ "node": "laptop", "sessions": 3 }] }
 /// ```
-pub fn collect_roster(status: &mut HashMap<String, FacetStatus>) -> RosterData {
+pub(crate) fn collect_roster(status: &mut HashMap<String, FacetStatus>) -> RosterData {
     match run_cli(&["muster", "--fleet", "--json"]) {
         Ok(stdout) => {
             match parse_roster_json(&stdout) {
@@ -216,7 +219,7 @@ fn parse_roster_json(s: &str) -> Result<RosterData, String> {
 /// ```json
 /// { "converged": true, "nodes": [{ "node": "laptop", "lag": 0 }] }
 /// ```
-pub fn collect_converge(status: &mut HashMap<String, FacetStatus>) -> ConvergeData {
+pub(crate) fn collect_converge(status: &mut HashMap<String, FacetStatus>) -> ConvergeData {
     match run_cli(&["corpus-converge", "version", "--json"]) {
         Ok(stdout) => {
             match parse_converge_json(&stdout) {
@@ -280,7 +283,7 @@ fn parse_converge_json(s: &str) -> Result<ConvergeData, String> {
 /// ```json
 /// { "leases": [{ "key": "lock/build", "holder": "laptop", "expires": "..." }] }
 /// ```
-pub fn collect_arbiter(status: &mut HashMap<String, FacetStatus>) -> ArbiterData {
+pub(crate) fn collect_arbiter(status: &mut HashMap<String, FacetStatus>) -> ArbiterData {
     match run_cli(&["corpus-arbiter", "status", "--json"]) {
         Ok(stdout) => {
             match parse_arbiter_json(&stdout) {
@@ -340,7 +343,7 @@ fn parse_arbiter_json(s: &str) -> Result<ArbiterData, String> {
 /// ```json
 /// { "links": [{ "node": "server", "up": true, "rtt_ms": 12.4 }] }
 /// ```
-pub fn collect_tether(status: &mut HashMap<String, FacetStatus>) -> TetherData {
+pub(crate) fn collect_tether(status: &mut HashMap<String, FacetStatus>) -> TetherData {
     match run_cli(&["wm-tether", "status", "--json"]) {
         Ok(stdout) => {
             match parse_tether_json(&stdout) {

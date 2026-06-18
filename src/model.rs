@@ -7,7 +7,7 @@ use crate::facets::{collect_attest, collect_arbiter, collect_converge, collect_r
 /// Status of a single corpus facet query.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum FacetStatus {
+pub(crate) enum FacetStatus {
     /// Data collected successfully.
     Ok,
     /// Facet CLI is not installed.
@@ -20,52 +20,52 @@ pub enum FacetStatus {
 
 /// Per-node information assembled from all facets.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NodeInfo {
+pub(crate) struct NodeInfo {
     /// Node identifier (hostname or NATS subject prefix).
-    pub node: String,
+    pub(crate) node: String,
     /// Whether this node has a valid corpus attestation.
-    pub attested: bool,
+    pub(crate) attested: bool,
     /// Link health from wm-tether (None if tether unavailable).
-    pub link: Option<LinkInfo>,
+    pub(crate) link: Option<LinkInfo>,
     /// Active session count from muster (None if roster unavailable).
-    pub sessions: Option<u32>,
+    pub(crate) sessions: Option<u32>,
     /// Version lag in commits behind the converged state (None if converge unavailable).
-    pub version_lag: Option<u32>,
+    pub(crate) version_lag: Option<u32>,
 }
 
 /// Link health information from wm-tether.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LinkInfo {
+pub(crate) struct LinkInfo {
     /// Is the link currently up?
-    pub up: bool,
+    pub(crate) up: bool,
     /// Round-trip time in milliseconds, if measured.
-    pub rtt_ms: Option<f64>,
+    pub(crate) rtt_ms: Option<f64>,
 }
 
 /// A held lease from corpus-arbiter.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LeaseInfo {
+pub(crate) struct LeaseInfo {
     /// Lease key / name.
-    pub key: String,
+    pub(crate) key: String,
     /// Which node holds this lease.
-    pub holder: String,
+    pub(crate) holder: String,
     /// When the lease expires (ISO 8601), if known.
-    pub expires: Option<String>,
+    pub(crate) expires: Option<String>,
 }
 
 /// The complete self-portrait: all nodes, leases, and whether memory is converged.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WholeSelf {
+pub(crate) struct WholeSelf {
     /// All known nodes that constitute the entity.
-    pub nodes: Vec<NodeInfo>,
+    pub(crate) nodes: Vec<NodeInfo>,
     /// Currently held leases across the fleet.
-    pub leases: Vec<LeaseInfo>,
+    pub(crate) leases: Vec<LeaseInfo>,
     /// Is the entire fleet converged on the same memory state?
-    pub converged: bool,
+    pub(crate) converged: bool,
     /// Timestamp when this record was generated (ISO 8601).
-    pub generated_ts: String,
+    pub(crate) generated_ts: String,
     /// Facet collection status — degraded facets are named here.
-    pub facet_status: std::collections::HashMap<String, FacetStatus>,
+    pub(crate) facet_status: std::collections::HashMap<String, FacetStatus>,
 }
 
 impl WholeSelf {
@@ -73,7 +73,7 @@ impl WholeSelf {
     ///
     /// Never panics — missing CLIs degrade gracefully to `FacetStatus::Degraded`.
     #[must_use]
-    pub fn collect() -> Self {
+    pub(crate) fn collect() -> Self {
         let mut facet_status = std::collections::HashMap::new();
 
         let attest = collect_attest(&mut facet_status);
