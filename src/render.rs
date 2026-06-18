@@ -4,7 +4,7 @@ use crate::model::{FacetStatus, WholeSelf};
 
 /// Print the human-readable self-portrait to stdout.
 #[allow(clippy::print_stdout)]
-pub fn print_text(whole: &WholeSelf) {
+pub(crate) fn print_text(whole: &WholeSelf) {
     let node_count = whole.nodes.len();
     let converged_str = if whole.converged { "converged" } else { "NOT converged" };
 
@@ -71,7 +71,7 @@ pub fn print_text(whole: &WholeSelf) {
 
 /// Print the selfreview block for the self-review playbook.
 #[allow(clippy::print_stdout)]
-pub fn print_selfreview(whole: &WholeSelf) {
+pub(crate) fn print_selfreview(whole: &WholeSelf) {
     let node_count = whole.nodes.len();
     let converged_str = if whole.converged { "yes" } else { "no" };
     let lease_count = whole.leases.len();

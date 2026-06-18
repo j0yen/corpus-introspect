@@ -11,35 +11,35 @@ use crate::model::{FacetStatus, LeaseInfo, LinkInfo};
 // ---------------------------------------------------------------------------
 
 /// Data returned by the attest facet.
-pub struct AttestData {
+pub(crate) struct AttestData {
     /// `(node_name, is_attested)` pairs.
-    pub nodes: Vec<(String, bool)>,
+    pub(crate) nodes: Vec<(String, bool)>,
 }
 
 /// Data returned by the roster facet.
-pub struct RosterData {
+pub(crate) struct RosterData {
     /// `(node_name, active_session_count)` pairs.
-    pub sessions: Vec<(String, u32)>,
+    pub(crate) sessions: Vec<(String, u32)>,
 }
 
 /// Data returned by the converge facet.
-pub struct ConvergeData {
+pub(crate) struct ConvergeData {
     /// Is the fleet fully converged?
-    pub converged: bool,
+    pub(crate) converged: bool,
     /// `(node_name, version_lag_commits)` pairs. 0 = up to date.
-    pub version_lags: Vec<(String, u32)>,
+    pub(crate) version_lags: Vec<(String, u32)>,
 }
 
 /// Data returned by the arbiter facet.
-pub struct ArbiterData {
+pub(crate) struct ArbiterData {
     /// Currently held leases.
-    pub leases: Vec<LeaseInfo>,
+    pub(crate) leases: Vec<LeaseInfo>,
 }
 
 /// Data returned by the tether facet.
-pub struct TetherData {
+pub(crate) struct TetherData {
     /// `(node_name, link_info)` pairs.
-    pub links: Vec<(String, LinkInfo)>,
+    pub(crate) links: Vec<(String, LinkInfo)>,
 }
 
 // ---------------------------------------------------------------------------
@@ -85,9 +85,9 @@ enum CliError {
 }
 
 impl CliError {
-    fn to_facet_status(&self) -> FacetStatus {
+    const fn to_facet_status(&self) -> FacetStatus {
         match self {
-            CliError::NotFound => FacetStatus::Degraded,
+            Self::NotFound => FacetStatus::Degraded,
             _ => FacetStatus::Error,
         }
     }
@@ -103,21 +103,19 @@ impl CliError {
 /// ```json
 /// { "this_node": "laptop", "attested_nodes": ["laptop", "server"] }
 /// ```
-pub fn collect_attest(status: &mut HashMap<String, FacetStatus>) -> AttestData {
+pub(crate) fn collect_attest(status: &mut HashMap<String, FacetStatus>) -> AttestData {
     match run_cli(&["corpus-attest", "--json"]) {
-        Ok(stdout) => {
-            match parse_attest_json(&stdout) {
-                Ok(data) => {
-                    status.insert("attest".to_owned(), FacetStatus::Ok);
-                    data
-                }
-                Err(e) => {
-                    status.insert("attest".to_owned(), FacetStatus::Error);
-                    eprintln!("corpus-introspect: attest parse error: {e}");
-                    AttestData { nodes: vec![] }
-                }
+        Ok(stdout) => match parse_attest_json(&stdout) {
+            Ok(data) => {
+                status.insert("attest".to_owned(), FacetStatus::Ok);
+                data
             }
-        }
+            Err(e) => {
+                status.insert("attest".to_owned(), FacetStatus::Error);
+                eprintln!("corpus-introspect: attest parse error: {e}");
+                AttestData { nodes: vec![] }
+            }
+        },
         Err(e) => {
             status.insert("attest".to_owned(), e.to_facet_status());
             AttestData { nodes: vec![] }
@@ -130,11 +128,11 @@ fn parse_attest_json(s: &str) -> Result<AttestData, String> {
         serde_json::from_str(s).map_err(|e| e.to_string())?;
     let mut nodes = Vec::new();
 
-    if let Some(this) = v.get("this_node").and_then(|n| n.as_str()) {
+    if let Some(this) = v.get("this_node").and_then(serde_json::Value::as_str) {
         // Mark this node as attested if it appears in attested_nodes.
         let attested_nodes: Vec<String> = v
             .get("attested_nodes")
-            .and_then(|a| a.as_array())
+            .and_then(serde_json::Value::as_array)
             .map(|arr| {
                 arr.iter()
                     .filter_map(|n| n.as_str().map(str::to_owned))
@@ -165,21 +163,19 @@ fn parse_attest_json(s: &str) -> Result<AttestData, String> {
 /// ```json
 /// { "nodes": [{ "node": "laptop", "sessions": 3 }] }
 /// ```
-pub fn collect_roster(status: &mut HashMap<String, FacetStatus>) -> RosterData {
+pub(crate) fn collect_roster(status: &mut HashMap<String, FacetStatus>) -> RosterData {
     match run_cli(&["muster", "--fleet", "--json"]) {
-        Ok(stdout) => {
-            match parse_roster_json(&stdout) {
-                Ok(data) => {
-                    status.insert("roster".to_owned(), FacetStatus::Ok);
-                    data
-                }
-                Err(e) => {
-                    status.insert("roster".to_owned(), FacetStatus::Error);
-                    eprintln!("corpus-introspect: roster parse error: {e}");
-                    RosterData { sessions: vec![] }
-                }
+        Ok(stdout) => match parse_roster_json(&stdout) {
+            Ok(data) => {
+                status.insert("roster".to_owned(), FacetStatus::Ok);
+                data
             }
-        }
+            Err(e) => {
+                status.insert("roster".to_owned(), FacetStatus::Error);
+                eprintln!("corpus-introspect: roster parse error: {e}");
+                RosterData { sessions: vec![] }
+            }
+        },
         Err(e) => {
             status.insert("roster".to_owned(), e.to_facet_status());
             RosterData { sessions: vec![] }
@@ -192,16 +188,18 @@ fn parse_roster_json(s: &str) -> Result<RosterData, String> {
         serde_json::from_str(s).map_err(|e| e.to_string())?;
     let mut sessions = Vec::new();
 
-    if let Some(nodes) = v.get("nodes").and_then(|n| n.as_array()) {
+    if let Some(nodes) = v.get("nodes").and_then(serde_json::Value::as_array) {
         for node in nodes {
             let name = node
                 .get("node")
-                .and_then(|n| n.as_str())
+                .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| "missing node.node".to_owned())?;
-            let count = node
+            // Session counts from JSON are u64; cap to u32 max to avoid truncation.
+            let count_u64 = node
                 .get("sessions")
-                .and_then(|s| s.as_u64())
-                .unwrap_or(0) as u32;
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0);
+            let count = u32::try_from(count_u64).unwrap_or(u32::MAX);
             sessions.push((name.to_owned(), count));
         }
     }
@@ -219,24 +217,22 @@ fn parse_roster_json(s: &str) -> Result<RosterData, String> {
 /// ```json
 /// { "converged": true, "nodes": [{ "node": "laptop", "lag": 0 }] }
 /// ```
-pub fn collect_converge(status: &mut HashMap<String, FacetStatus>) -> ConvergeData {
+pub(crate) fn collect_converge(status: &mut HashMap<String, FacetStatus>) -> ConvergeData {
     match run_cli(&["corpus-converge", "version", "--json"]) {
-        Ok(stdout) => {
-            match parse_converge_json(&stdout) {
-                Ok(data) => {
-                    status.insert("converge".to_owned(), FacetStatus::Ok);
-                    data
-                }
-                Err(e) => {
-                    status.insert("converge".to_owned(), FacetStatus::Error);
-                    eprintln!("corpus-introspect: converge parse error: {e}");
-                    ConvergeData {
-                        converged: false,
-                        version_lags: vec![],
-                    }
+        Ok(stdout) => match parse_converge_json(&stdout) {
+            Ok(data) => {
+                status.insert("converge".to_owned(), FacetStatus::Ok);
+                data
+            }
+            Err(e) => {
+                status.insert("converge".to_owned(), FacetStatus::Error);
+                eprintln!("corpus-introspect: converge parse error: {e}");
+                ConvergeData {
+                    converged: false,
+                    version_lags: vec![],
                 }
             }
-        }
+        },
         Err(e) => {
             status.insert("converge".to_owned(), e.to_facet_status());
             ConvergeData {
@@ -252,17 +248,21 @@ fn parse_converge_json(s: &str) -> Result<ConvergeData, String> {
         serde_json::from_str(s).map_err(|e| e.to_string())?;
     let converged = v
         .get("converged")
-        .and_then(|c| c.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
 
     let mut version_lags = Vec::new();
-    if let Some(nodes) = v.get("nodes").and_then(|n| n.as_array()) {
+    if let Some(nodes) = v.get("nodes").and_then(serde_json::Value::as_array) {
         for node in nodes {
             let name = node
                 .get("node")
-                .and_then(|n| n.as_str())
+                .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| "missing node.node".to_owned())?;
-            let lag = node.get("lag").and_then(|l| l.as_u64()).unwrap_or(0) as u32;
+            let lag_u64 = node
+                .get("lag")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0);
+            let lag = u32::try_from(lag_u64).unwrap_or(u32::MAX);
             version_lags.push((name.to_owned(), lag));
         }
     }
@@ -283,21 +283,19 @@ fn parse_converge_json(s: &str) -> Result<ConvergeData, String> {
 /// ```json
 /// { "leases": [{ "key": "lock/build", "holder": "laptop", "expires": "..." }] }
 /// ```
-pub fn collect_arbiter(status: &mut HashMap<String, FacetStatus>) -> ArbiterData {
+pub(crate) fn collect_arbiter(status: &mut HashMap<String, FacetStatus>) -> ArbiterData {
     match run_cli(&["corpus-arbiter", "status", "--json"]) {
-        Ok(stdout) => {
-            match parse_arbiter_json(&stdout) {
-                Ok(data) => {
-                    status.insert("arbiter".to_owned(), FacetStatus::Ok);
-                    data
-                }
-                Err(e) => {
-                    status.insert("arbiter".to_owned(), FacetStatus::Error);
-                    eprintln!("corpus-introspect: arbiter parse error: {e}");
-                    ArbiterData { leases: vec![] }
-                }
+        Ok(stdout) => match parse_arbiter_json(&stdout) {
+            Ok(data) => {
+                status.insert("arbiter".to_owned(), FacetStatus::Ok);
+                data
             }
-        }
+            Err(e) => {
+                status.insert("arbiter".to_owned(), FacetStatus::Error);
+                eprintln!("corpus-introspect: arbiter parse error: {e}");
+                ArbiterData { leases: vec![] }
+            }
+        },
         Err(e) => {
             status.insert("arbiter".to_owned(), e.to_facet_status());
             ArbiterData { leases: vec![] }
@@ -310,21 +308,21 @@ fn parse_arbiter_json(s: &str) -> Result<ArbiterData, String> {
         serde_json::from_str(s).map_err(|e| e.to_string())?;
     let mut leases = Vec::new();
 
-    if let Some(arr) = v.get("leases").and_then(|l| l.as_array()) {
+    if let Some(arr) = v.get("leases").and_then(serde_json::Value::as_array) {
         for item in arr {
             let key = item
                 .get("key")
-                .and_then(|k| k.as_str())
+                .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| "missing lease.key".to_owned())?
                 .to_owned();
             let holder = item
                 .get("holder")
-                .and_then(|h| h.as_str())
+                .and_then(serde_json::Value::as_str)
                 .unwrap_or("unknown")
                 .to_owned();
             let expires = item
                 .get("expires")
-                .and_then(|e| e.as_str())
+                .and_then(serde_json::Value::as_str)
                 .map(str::to_owned);
             leases.push(LeaseInfo { key, holder, expires });
         }
@@ -343,21 +341,19 @@ fn parse_arbiter_json(s: &str) -> Result<ArbiterData, String> {
 /// ```json
 /// { "links": [{ "node": "server", "up": true, "rtt_ms": 12.4 }] }
 /// ```
-pub fn collect_tether(status: &mut HashMap<String, FacetStatus>) -> TetherData {
+pub(crate) fn collect_tether(status: &mut HashMap<String, FacetStatus>) -> TetherData {
     match run_cli(&["wm-tether", "status", "--json"]) {
-        Ok(stdout) => {
-            match parse_tether_json(&stdout) {
-                Ok(data) => {
-                    status.insert("tether".to_owned(), FacetStatus::Ok);
-                    data
-                }
-                Err(e) => {
-                    status.insert("tether".to_owned(), FacetStatus::Error);
-                    eprintln!("corpus-introspect: tether parse error: {e}");
-                    TetherData { links: vec![] }
-                }
+        Ok(stdout) => match parse_tether_json(&stdout) {
+            Ok(data) => {
+                status.insert("tether".to_owned(), FacetStatus::Ok);
+                data
             }
-        }
+            Err(e) => {
+                status.insert("tether".to_owned(), FacetStatus::Error);
+                eprintln!("corpus-introspect: tether parse error: {e}");
+                TetherData { links: vec![] }
+            }
+        },
         Err(e) => {
             status.insert("tether".to_owned(), e.to_facet_status());
             TetherData { links: vec![] }
@@ -370,15 +366,18 @@ fn parse_tether_json(s: &str) -> Result<TetherData, String> {
         serde_json::from_str(s).map_err(|e| e.to_string())?;
     let mut links = Vec::new();
 
-    if let Some(arr) = v.get("links").and_then(|l| l.as_array()) {
+    if let Some(arr) = v.get("links").and_then(serde_json::Value::as_array) {
         for item in arr {
             let node = item
                 .get("node")
-                .and_then(|n| n.as_str())
+                .and_then(serde_json::Value::as_str)
                 .ok_or_else(|| "missing link.node".to_owned())?
                 .to_owned();
-            let up = item.get("up").and_then(|u| u.as_bool()).unwrap_or(false);
-            let rtt_ms = item.get("rtt_ms").and_then(|r| r.as_f64());
+            let up = item
+                .get("up")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
+            let rtt_ms = item.get("rtt_ms").and_then(serde_json::Value::as_f64);
             links.push((node, LinkInfo { up, rtt_ms }));
         }
     }

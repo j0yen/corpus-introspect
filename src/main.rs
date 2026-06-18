@@ -4,7 +4,7 @@
 //! and held leases — plus link health — into a single human-readable picture
 //! of the entire wintermute entity.
 
-#![allow(clippy::print_stdout, clippy::print_stderr)]
+#![allow(clippy::print_stdout, clippy::print_stderr, clippy::redundant_pub_crate)]
 
 use std::process;
 
