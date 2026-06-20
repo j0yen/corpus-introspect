@@ -1,26 +1,28 @@
 # corpus-introspect
 
-**Multinode self-mirror** — synthesises attest, roster, converge, and arbiter into one view.
+One command that answers "what am I, right now?" for a wintermute fleet — assembling every corpus facet into a single self-portrait.
 
-The wintermute corpus has four facets (attestation, roster, convergence, arbiter) but no
-single place to answer "what am I, right now?" `corpus-introspect` is that mirror: one
-command that assembles all five corpus facets into a single human-readable self-portrait
-and machine-readable `WholeSelf` JSON record.
+## Why it exists
 
-## Usage
+The wintermute corpus knows itself through five separate facets: attestation (who is a real member), roster (who is active), convergence (is everyone's state in sync), arbiter (what leases are held), and tether (are the links up). Each facet has its own CLI. None of them answers the whole question at once. `corpus-introspect` is that mirror: it queries all five and renders one picture — human-readable for a person, a `WholeSelf` JSON record for a machine.
+
+## Install
 
 ```sh
-# Human-readable self-portrait
-corpus-introspect
-
-# JSON output (WholeSelf record)
-corpus-introspect --json
-
-# Block suitable for the self-review playbook
-corpus-introspect --format selfreview
+cargo install --path .
 ```
 
-## WholeSelf record
+Requires Rust 1.85+. Dependencies: `clap`, `serde`, `serde_json`, `sigpipe`.
+
+## Quickstart
+
+```sh
+corpus-introspect                      # human-readable self-portrait (default)
+corpus-introspect --json               # WholeSelf record
+corpus-introspect --format selfreview  # parseable block for the self-review playbook
+```
+
+The `WholeSelf` record collects per-node attestation and link health, session counts, version lag, held leases, whether the fleet has converged, and the status of each facet query:
 
 ```json
 {
@@ -48,32 +50,19 @@ corpus-introspect --format selfreview
 
 ## Graceful degradation
 
-Any missing upstream CLI (corpus-attest, muster, corpus-converge, corpus-arbiter,
-wm-tether) is reported as `"degraded"` in `facet_status` and the command still
-exits 0. On a lone laptop with no corpus components installed, it reports a
-single-node self (unattested, no fleet) honestly.
+A self-mirror has to work even when half of the self is missing. Each facet is a separate upstream CLI — `corpus-attest`, `muster` (roster), `corpus-converge`, `corpus-arbiter`, `wm-tether` — and any one that is absent is reported as `degraded` in `facet_status`, with the rest of the picture intact. The command still exits 0. On a lone laptop with no corpus components installed at all, it reports a single-node self — unattested, no fleet — and says so honestly rather than erroring.
 
-## Acceptance criteria
+## How it works
 
-1. Given fixture shims, `--json` emits a `WholeSelf` record correctly reflecting
-   nodes, leases, and converged state.
-2. Text view renders a bounded self-portrait naming each node's attested+link status,
-   session count, and convergence verdict.
-3. When one upstream CLI is absent, that facet is `degraded` with a reason; exit 0.
-4. With no corpus components, reports a single-node unattested self; no error.
-5. `--format selfreview` emits a parseable block with node_count, converged, lease_count.
-6. (deferred — live fleet) Two-node fleet with real RTT and session counts.
-7. `cargo test` green; `sigpipe::reset()` first in `main()`; no SIGPIPE panic.
+Five facet collectors each shell out to one upstream CLI and return structured data. A missing binary becomes a `Degraded` status, never a panic. The collected facets are merged into per-node `NodeInfo` records and a top-level `WholeSelf`, which the renderer turns into text, JSON, or the self-review block.
 
-## Install
+## Status
 
-```sh
-cargo install --path .
-```
+v0.1.0. The five facet collectors, the three output formats, and graceful degradation are tested and working. Live two-node verification with real RTT and session counts (AC6) is deferred until a real fleet is wired; today's tests run against fixture shims.
 
-## Dependencies
+## Where it fits
 
-`clap`, `serde`, `serde_json`, `sigpipe`. MSRV 1.85, edition 2021.
+The reflective layer of the wintermute fleet. It owns no state — it reads the facets that `corpus-attest`, `muster`, `corpus-converge`, `corpus-arbiter`, and `wm-tether` each own, and composes them into one view.
 
 ## License
 
